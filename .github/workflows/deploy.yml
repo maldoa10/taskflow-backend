@@ -1,0 +1,112 @@
+name: CD - Deploy
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+permissions:
+  contents: read
+
+jobs:
+  # JOB 1: Build
+  build:
+    name: Build ${{ github.ref_name == 'main' && 'Production' || 'Staging' }}
+    runs-on: ubuntu-latest
+    outputs:
+      environment: ${{ steps.set-env.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Determine environment
+        id: set-env
+        run: |
+          if [[ "${{ github.ref_name }}" == "main" ]]; then
+            echo "environment=production" >> $GITHUB_OUTPUT
+          else
+            echo "environment=staging" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile TypeScript
+        run: npm run build
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-backend-${{ steps.set-env.outputs.environment }}
+          path: dist/
+          retention-days: 7
+
+  # JOB 2: Migraciones de base de datos
+  migrate:
+    name: Run DB Migrations
+    runs-on: ubuntu-latest
+    needs: build
+    environment: ${{ needs.build.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run migrations
+        run: npm run migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+  # JOB 3: Deploy
+  deploy:
+    name: Deploy to ${{ needs.build.outputs.environment }}
+    runs-on: ubuntu-latest
+    needs: [build, migrate]
+    environment: ${{ needs.build.outputs.environment }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-backend-${{ needs.build.outputs.environment }}
+          path: dist/
+
+      - name: Deploy to Render
+          run: |
+            curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+
+      - name: Deploy placeholder
+        run: echo "Configura el hosting en este step."
+
+  # JOB 4: Notificación de resultado
+  notify:
+    name: Notify Result
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    steps:
+      - name: Deployment status
+        run: |
+          if [[ "${{ needs.deploy.result }}" == "success" ]]; then
+            echo "Deploy exitoso a ${{ needs.build.outputs.environment }}"
+          else
+            echo "Deploy fallido a ${{ needs.build.outputs.environment }}"
+            exit 1
+          fi

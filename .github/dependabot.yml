@@ -1,0 +1,41 @@
+version: 2
+
+updates:
+  # Backend - NPM dependencies
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "08:00"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+
+    # Agrupa dependencias de desarrollo en un solo PR
+    groups:
+      dev-dependencies:
+        dependency-type: "development"
+
+      # Agrupa actualizaciones seguras
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+    # Evita actualizaciones major automáticas
+    ignore:
+      - dependency-name: "*"
+        update-types:
+          - "version-update:semver-major"
+
+  # GitHub Actions (CI/CD)
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    labels:
+      - "dependencies"
+      - "github-actions"
