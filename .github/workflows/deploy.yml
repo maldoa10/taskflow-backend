@@ -89,8 +89,8 @@ jobs:
           path: dist/
 
       - name: Deploy to Render
-          run: |
-            curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
 
       - name: Deploy placeholder
         run: echo "Configura el hosting en este step."
