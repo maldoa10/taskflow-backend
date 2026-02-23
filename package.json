@@ -4,7 +4,11 @@
   "description": "TaskFlow API - Backend for collaborative task management PWA",
   "main": "dist/server.js",
   "scripts": {
-    "test": "jest"
+    "dev": "ts-node-dev --respawn --transpile-only src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "test": "jest",
+    "migrate": "ts-node src/database/migrate.ts"
   },
   "repository": {
     "type": "git",
