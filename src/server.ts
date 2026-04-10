@@ -4,16 +4,17 @@ import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
 import { errorHandler } from './middleware/errorHandler'
-import authRoutes from './modules/auth/auth.routes'
+import { logger } from './utils/logger'
+import { env } from './config/env'
 
 const app = express()
-const PORT = process.env.PORT ?? 4000
+const PORT = env.PORT
 
-// ─── Seguridad y utilidades ────────────────────────────────────────────────────
+// Seguridad y utilidades
 app.use(helmet())
 app.use(
   cors({
-    origin: process.env.CORS_ORIGIN ?? 'http://localhost:3000',
+    origin: env.CORS_ORIGIN,
     credentials: true,
   })
 )
@@ -21,25 +22,25 @@ app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
 
-// ─── Health check ─────────────────────────────────────────────────────────────
+// Health check
 app.get('/api/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV ?? 'development',
+    environment: env.NODE_ENV,
   })
 })
 
 // ─── Rutas ─────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes)
 
-// ─── Manejo de errores ────────────────────────────────────────────────────────
+// Manejo de errores
 app.use(errorHandler)
 
-// ─── Iniciar servidor ─────────────────────────────────────────────────────────
+// Iniciar servidor
 app.listen(PORT, () => {
-  console.log(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
-  console.log(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
+  logger.info(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
+  logger.info(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
 })
 
 export default app

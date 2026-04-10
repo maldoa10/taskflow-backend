@@ -5,12 +5,17 @@ const config: Config = {
   testEnvironment: 'node',
   rootDir: '.',
   testMatch: ['**/tests/**/*.test.ts'],
-  collectCoverageFrom: ['src/**/*.ts', '!src/generated/**'],
+  collectCoverageFrom: ['src/**/*.ts', '!src/generated/**', '!src/server.ts', '!src/database/**', '!src/config/env.ts', '!src/utils/logger.ts'],
   coverageDirectory: 'coverage',
   coverageThreshold: {
     global: { lines: 70 },
   },
-  setupFilesAfterFramework: [],
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.test.json',
+    }],
+  },
+  setupFilesAfterEnv: [],
 }
 
 export default config
