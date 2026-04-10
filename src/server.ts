@@ -4,6 +4,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import compression from 'compression'
 import { errorHandler } from './middleware/errorHandler'
+import authRoutes from './modules/auth/auth.routes'
 
 const app = express()
 const PORT = process.env.PORT ?? 4000
@@ -28,6 +29,9 @@ app.get('/api/health', (_req, res) => {
     environment: process.env.NODE_ENV ?? 'development',
   })
 })
+
+// ─── Rutas ─────────────────────────────────────────────────────────────────────
+app.use('/api/auth', authRoutes)
 
 // ─── Manejo de errores ────────────────────────────────────────────────────────
 app.use(errorHandler)
