@@ -1,13 +1,13 @@
 import { z } from 'zod'
 
 const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  PORT: z.coerce.number().default(4000),
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  PORT: z.coerce.number().int().positive(),
   DATABASE_URL: z.string().min(1, 'DATABASE_URL es requerida'),
   JWT_SECRET: z.string().min(16, 'JWT_SECRET debe tener al menos 16 caracteres'),
-  JWT_EXPIRES_IN: z.string().default('15m'),
-  JWT_REFRESH_EXPIRES_IN: z.string().default('7d'),
-  CORS_ORIGIN: z.string().default('http://localhost:3000'),
+  JWT_EXPIRES_IN: z.string(),
+  JWT_REFRESH_EXPIRES_IN: z.string(),
+  CORS_ORIGIN: z.string(),
   VAPID_PUBLIC_KEY: z.string().optional(),
   VAPID_PRIVATE_KEY: z.string().optional(),
   VAPID_EMAIL: z.string().optional(),
@@ -16,8 +16,8 @@ const envSchema = z.object({
 const parsed = envSchema.safeParse(process.env)
 
 if (!parsed.success) {
-  console.error('[Config] Variables de entorno invalidas:')
-  console.error(parsed.error.flatten().fieldErrors)
+  console.error('[Config] Variables inválidas:', parsed.error.flatten().fieldErrors)
+
   process.exit(1)
 }
 
