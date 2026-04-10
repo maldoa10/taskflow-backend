@@ -1,6 +1,5 @@
 import { Request, Response, NextFunction } from 'express'
 import { logger } from '../utils/logger'
-import path from 'node:path'
 
 export class AppError extends Error {
   constructor(
@@ -14,7 +13,6 @@ export class AppError extends Error {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
     res.status(err.statusCode).json({
