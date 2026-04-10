@@ -10,6 +10,11 @@ const config: Config = {
   coverageThreshold: {
     global: { lines: 70 },
   },
+  transform: {
+    '^.+\\.tsx?$': ['ts-jest', {
+      tsconfig: 'tsconfig.test.json',
+    }],
+  },
   setupFilesAfterEnv: [],
 }
 
