@@ -26,12 +26,14 @@ export function errorHandler(err: Error, req: Request, res: Response, _next: Nex
   }
 
   // Error inesperado
-  logger.error({
-    err,
-    path: req.url,
-    method: req.method,
-  },
-    'Error inesperado en el servidor')
+  logger.error(
+    {
+      err,
+      path: req.url,
+      method: req.method,
+    },
+    'Error inesperado en el servidor'
+  )
 
   res.status(500).json({
     error: {
