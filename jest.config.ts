@@ -10,7 +10,7 @@ const config: Config = {
   coverageThreshold: {
     global: { lines: 70 },
   },
-  setupFilesAfterFramework: [],
+  setupFilesAfterEnv: [],
 }
 
 export default config
