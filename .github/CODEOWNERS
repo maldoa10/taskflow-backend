@@ -2,29 +2,29 @@
 # https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
 
 # Regla global: admin revisa todo
-*                           @AndresMaldonado200338
+*                           @maldoA10
 
 # CI/CD y automatización
 # Cambios aquí pueden afectar deploy y seguridad
-.github/                    @AndresMaldonado200338
+.github/                    @maldoA10
 
 # Dependencias críticas
-package.json                @AndresMaldonado200338
-package-lock.json           @AndresMaldonado200338
-tsconfig.json               @AndresMaldonado200338
+package.json                @maldoA10
+package-lock.json           @maldoA10
+tsconfig.json               @maldoA10
 
 # Base de datos y migraciones
 # Cambios estructurales críticos
-prisma/                     @AndresMaldonado200338
-src/migrations/             @AndresMaldonado200338
+prisma/                     @maldoA10
+src/migrations/             @maldoA10
 
 # Autenticación, seguridad y sincronización
-src/modules/auth/           @AndresMaldonado200338
-src/modules/sync/           @AndresMaldonado200338
+src/modules/auth/           @maldoA10
+src/modules/sync/           @maldoA10
 
 # Middlewares y configuración global
-src/middleware/             @AndresMaldonado200338
-src/config/                 @AndresMaldonado200338
+src/middleware/             @maldoA10
+src/config/                 @maldoA10
 
 # Variables de entorno (ejemplo seguro)
-.env.example                @AndresMaldonado200338
+.env.example                @maldoA10
