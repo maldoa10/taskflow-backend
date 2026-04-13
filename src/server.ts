@@ -6,6 +6,7 @@ import compression from 'compression'
 import { errorHandler } from './middleware/errorHandler'
 import { logger } from './utils/logger'
 import { env } from './config/env'
+import authRoutes from './modules/auth/auth.routes'
 
 const app = express()
 const PORT = env.PORT
@@ -30,6 +31,9 @@ app.get('/api/health', (_req, res) => {
     environment: env.NODE_ENV,
   })
 })
+
+// Rutas
+app.use('/api/auth', authRoutes)
 
 // Manejo de errores
 app.use(errorHandler)
