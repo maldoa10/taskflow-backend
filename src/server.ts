@@ -32,7 +32,7 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-// ─── Rutas ─────────────────────────────────────────────────────────────────────
+// Rutas
 app.use('/api/auth', authRoutes)
 
 // Manejo de errores

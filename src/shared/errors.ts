@@ -7,5 +7,6 @@ export const Errors = {
   conflict: (msg: string) => new AppError('CONFLICT', msg, 409),
   badRequest: (msg: string, details?: unknown) => new AppError('BAD_REQUEST', msg, 400, details),
   validationError: (details: unknown) =>
-    new AppError('VALIDATION_ERROR', 'Datos inválidos.', 422, details),
+    new AppError('VALIDATION_ERROR', 'Datos invalidos.', 422, details),
+  tooManyRequests: (msg: string) => new AppError('TOO_MANY_REQUESTS', msg, 429),
 }
