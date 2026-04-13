@@ -3,10 +3,11 @@ import jwt from 'jsonwebtoken'
 import { prisma } from '../../database/DbClient'
 import { Errors } from '../../shared/errors'
 import { RegisterInput, LoginInput } from './auth.validation'
+import { env } from '../../config/env'
 
-const JWT_SECRET = process.env.JWT_SECRET ?? 'dev-secret-change-me'
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? '15m'
-const JWT_REFRESH_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN ?? '7d'
+const JWT_SECRET = env.JWT_SECRET
+const JWT_EXPIRES_IN = env.JWT_EXPIRES_IN
+const JWT_REFRESH_EXPIRES_IN = env.JWT_REFRESH_EXPIRES_IN
 const JWT_REFRESH_REMEMBER = '30d'
 
 export interface TokenPayload {
@@ -49,7 +50,14 @@ export async function register(input: RegisterInput) {
   const passwordHash = await bcrypt.hash(input.password, 12)
   const user = await prisma.user.create({
     data: { name: input.name, email: input.email, passwordHash },
-    select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   })
 
   const payload: TokenPayload = { sub: user.id, email: user.email, name: user.name }
@@ -79,7 +87,14 @@ export async function login(input: LoginInput) {
 export async function getMe(userId: string) {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true, avatarUrl: true, createdAt: true, updatedAt: true },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      avatarUrl: true,
+      createdAt: true,
+      updatedAt: true,
+    },
   })
   if (!user) throw Errors.notFound('Usuario')
   return user
