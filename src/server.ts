@@ -7,6 +7,9 @@ import { errorHandler } from './middleware/errorHandler'
 import { logger } from './utils/logger'
 import { env } from './config/env'
 import authRoutes from './modules/auth/auth.routes'
+import boardsRoutes from './modules/boards/boards.routes'
+import boardTasksRoutes from './modules/tasks/tasks.routes'
+import tasksRoutes from './modules/tasks/tasks.direct.routes'
 
 const app = express()
 const PORT = env.PORT
@@ -34,6 +37,9 @@ app.get('/api/health', (_req, res) => {
 
 // ─── Rutas ─────────────────────────────────────────────────────────────────────
 app.use('/api/auth', authRoutes)
+app.use('/api/boards', boardsRoutes)
+app.use('/api/boards/:boardId/tasks', boardTasksRoutes)
+app.use('/api/tasks', tasksRoutes)
 
 // Manejo de errores
 app.use(errorHandler)
