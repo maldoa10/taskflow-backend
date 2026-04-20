@@ -15,6 +15,14 @@ export class AppError extends Error {
 
 export function errorHandler(err: Error, req: Request, res: Response, _next: NextFunction): void {
   if (err instanceof AppError) {
+    const meta = { code: err.code, status: err.statusCode, method: req.method, path: req.url }
+
+    if (err.statusCode < 500) {
+      logger.warn(meta, err.message)
+    } else {
+      logger.error({ ...meta, err }, err.message)
+    }
+
     res.status(err.statusCode).json({
       error: {
         code: err.code,

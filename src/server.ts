@@ -35,7 +35,7 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-// ─── Rutas ─────────────────────────────────────────────────────────────────────
+// Rutas
 app.use('/api/auth', authRoutes)
 app.use('/api/boards', boardsRoutes)
 app.use('/api/boards/:boardId/tasks', boardTasksRoutes)

@@ -15,7 +15,7 @@ const config: Config = {
       tsconfig: 'tsconfig.test.json',
     }],
   },
-  setupFilesAfterEnv: [],
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
 }
 
 export default config
