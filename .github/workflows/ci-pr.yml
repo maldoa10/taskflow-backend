@@ -58,7 +58,7 @@ jobs:
         run: npm run build
 
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist-backend
           path: dist/
@@ -110,7 +110,7 @@ jobs:
           JWT_SECRET: test_jwt_secret_only_for_ci
 
       - name: Upload coverage report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-backend
           path: coverage/
