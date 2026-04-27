@@ -5,8 +5,8 @@ import * as ctrl from './tasks.controller'
 
 const router = Router({ mergeParams: true })
 
-router.use(authenticate)
 router.use(generalRateLimiter)
+router.use(authenticate)
 
 // Montado en /api/boards/:boardId/tasks
 router.get('/', ctrl.getBoardTasks)
