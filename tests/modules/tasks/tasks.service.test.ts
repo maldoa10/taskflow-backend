@@ -10,7 +10,6 @@ const mockBoardId = 'board-456'
 const mockTaskId = 'task-789'
 const mockColumnId = 'col-111'
 const mockColumnId2 = 'col-222'
-const validUUID = '550e8400-e29b-41d4-a716-446655440000'
 
 const mockMember = {
   boardId: mockBoardId,
