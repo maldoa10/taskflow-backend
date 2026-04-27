@@ -1,10 +1,12 @@
 import { Router } from 'express'
 import { authenticate } from '../../middleware/authenticate'
+import { generalRateLimiter } from '../../middleware/rateLimiter'
 import * as ctrl from './boards.controller'
 
 const router = Router()
 
 router.use(authenticate)
+router.use(generalRateLimiter)
 
 router.get('/', ctrl.listBoards)
 router.post('/', ctrl.createBoard)

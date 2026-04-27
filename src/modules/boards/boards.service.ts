@@ -8,7 +8,7 @@ const DEFAULT_COLUMNS = [
   { name: 'Completado', position: 2 },
 ]
 
-// ─── Verificar que el usuario es miembro del board ────────────────────────────
+// Verificar que el usuario es miembro del board
 async function assertMember(boardId: string, userId: string) {
   const member = await prisma.boardMember.findUnique({
     where: { boardId_userId: { boardId, userId } },
@@ -22,7 +22,7 @@ async function assertOwner(boardId: string, userId: string) {
   if (member.role !== 'OWNER') throw Errors.forbidden()
 }
 
-// ─── Servicios ────────────────────────────────────────────────────────────────
+// Servicios
 
 export async function listBoards(userId: string) {
   const memberships = await prisma.boardMember.findMany({
