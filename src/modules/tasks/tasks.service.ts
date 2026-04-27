@@ -54,9 +54,8 @@ export async function updateTask(taskId: string, userId: string, input: UpdateTa
     where: { id: taskId },
     data: {
       ...input,
-      dueDate: input.dueDate !== undefined
-        ? input.dueDate ? new Date(input.dueDate) : null
-        : undefined,
+      dueDate:
+        input.dueDate !== undefined ? (input.dueDate ? new Date(input.dueDate) : null) : undefined,
       version: { increment: 1 },
     },
   })
