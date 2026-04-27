@@ -3,7 +3,6 @@ import * as boardsService from '../../../src/modules/boards/boards.service'
 
 const boardMember = prismaMock.boardMember as any
 const board = prismaMock.board as any
-const column = prismaMock.column as any
 
 const mockUserId = 'user-123'
 const mockBoardId = 'board-456'
