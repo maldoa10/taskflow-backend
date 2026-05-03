@@ -10,6 +10,7 @@ import authRoutes from './modules/auth/auth.routes'
 import boardsRoutes from './modules/boards/boards.routes'
 import boardTasksRoutes from './modules/tasks/tasks.routes'
 import tasksRoutes from './modules/tasks/tasks.direct.routes'
+import syncRoutes from './modules/sync/sync.routes'
 
 const app = express()
 const PORT = env.PORT
@@ -40,6 +41,7 @@ app.use('/api/auth', authRoutes)
 app.use('/api/boards', boardsRoutes)
 app.use('/api/boards/:boardId/tasks', boardTasksRoutes)
 app.use('/api/tasks', tasksRoutes)
+app.use('/api/sync', syncRoutes)
 
 // Manejo de errores
 app.use(errorHandler)
