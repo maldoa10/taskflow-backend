@@ -119,10 +119,37 @@ async function processTaskOp(op: SyncOperationInput, userId: string): Promise<Sy
   }
 
   if (operation === 'CREATE') {
-    // CREATEs van directo a la API — si llegan al sync es que ya existen
+    // Idempotent: if already exists (e.g. sync ran twice), skip
     const existing = await prisma.task.findUnique({ where: { id: entityId } })
     if (existing) return { entityId, status: 'skipped', serverData: existing }
-    return { entityId, status: 'skipped', message: 'CREATE debe ir directo a la API' }
+
+    const boardId = payload.boardId as string
+    if (!boardId) return { entityId, status: 'error', message: 'boardId requerido' }
+
+    await assertBoardMember(boardId, userId)
+
+    const column = await prisma.column.findFirst({
+      where: { id: payload.columnId as string, boardId },
+    })
+    if (!column) return { entityId, status: 'error', message: 'Columna no encontrada' }
+
+    const task = await prisma.task.create({
+      data: {
+        id: entityId, // preserve client-generated UUID
+        columnId: payload.columnId as string,
+        boardId,
+        title: payload.title as string,
+        description: (payload.description as string) || null,
+        priority: (payload.priority as Priority) || 'MEDIUM',
+        dueDate: payload.dueDate ? new Date(payload.dueDate as string) : null,
+        position: (payload.position as number) ?? 0,
+        assigneeId: (payload.assigneeId as string) || null,
+        createdById: userId,
+        tags: (payload.tags as string[]) || [],
+        version: 1,
+      },
+    })
+    return { entityId, status: 'applied', serverData: task }
   }
 
   return { entityId, status: 'skipped' }

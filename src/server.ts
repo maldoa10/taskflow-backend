@@ -1,4 +1,5 @@
 import 'dotenv/config'
+import { createServer } from 'http'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
@@ -11,6 +12,9 @@ import boardsRoutes from './modules/boards/boards.routes'
 import boardTasksRoutes from './modules/tasks/tasks.routes'
 import tasksRoutes from './modules/tasks/tasks.direct.routes'
 import syncRoutes from './modules/sync/sync.routes'
+import commentsRoutes from './modules/comments/comments.routes'
+import invitationsRoutes from './modules/invitations/invitations.routes'
+import { initWebSocket } from './websocket/wsServer'
 
 const app = express()
 const PORT = env.PORT
@@ -42,14 +46,20 @@ app.use('/api/boards', boardsRoutes)
 app.use('/api/boards/:boardId/tasks', boardTasksRoutes)
 app.use('/api/tasks', tasksRoutes)
 app.use('/api/sync', syncRoutes)
+app.use('/api/tasks/:taskId/comments', commentsRoutes)
+app.use('/api/invitations', invitationsRoutes)
 
 // Manejo de errores
 app.use(errorHandler)
 
-// Iniciar servidor
-app.listen(PORT, () => {
+// Crear servidor HTTP y adjuntar WebSocket
+const server = createServer(app)
+initWebSocket(server)
+
+server.listen(PORT, () => {
   logger.info(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
   logger.info(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
+  logger.info(`[TaskFlow API] WebSocket: ws://localhost:${PORT}/ws`)
 })
 
 export default app
