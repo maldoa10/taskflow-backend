@@ -4,6 +4,8 @@ import { Errors } from '../../shared/errors'
 import * as service from './tasks.service'
 import { createTaskSchema, updateTaskSchema, moveTaskSchema } from './tasks.validation'
 import { broadcast } from '../../websocket/rooms'
+import { sendPushToUser } from '../push/push.service'
+import { prisma } from '../../database/DbClient'
 
 const p = (v: string | string[]) => (Array.isArray(v) ? v[0] : v)
 
@@ -37,9 +39,30 @@ export async function updateTask(req: Request, res: Response, next: NextFunction
     const { user } = req as AuthenticatedRequest
     const input = updateTaskSchema.safeParse(req.body)
     if (!input.success) return next(Errors.validationError(input.error.flatten().fieldErrors))
-    const task = await service.updateTask(p(req.params.id), user.id, input.data)
+
+    // Read old assigneeId BEFORE updating so we can detect a real change
+    const taskId = p(req.params.id)
+    const oldTask =
+      input.data.assigneeId !== undefined
+        ? await prisma.task.findUnique({ where: { id: taskId }, select: { assigneeId: true } })
+        : null
+
+    const task = await service.updateTask(taskId, user.id, input.data)
 
     broadcast(task.boardId, { type: 'TASK_UPDATED', payload: task })
+
+    // Push notification only when assignee actually changed to someone other than the updater
+    if (
+      input.data.assigneeId &&
+      input.data.assigneeId !== user.id &&
+      input.data.assigneeId !== oldTask?.assigneeId
+    ) {
+      sendPushToUser(input.data.assigneeId, {
+        title: 'Nueva tarea asignada',
+        body: `Se te asignó: ${task.title}`,
+        url: `/board/${task.boardId}`,
+      }).catch(() => {})
+    }
 
     res.json({ task })
   } catch (err) {

@@ -14,6 +14,7 @@ import tasksRoutes from './modules/tasks/tasks.direct.routes'
 import syncRoutes from './modules/sync/sync.routes'
 import commentsRoutes from './modules/comments/comments.routes'
 import invitationsRoutes from './modules/invitations/invitations.routes'
+import pushRoutes from './modules/push/push.routes'
 import { initWebSocket } from './websocket/wsServer'
 
 const app = express()
@@ -48,6 +49,7 @@ app.use('/api/tasks', tasksRoutes)
 app.use('/api/sync', syncRoutes)
 app.use('/api/tasks/:taskId/comments', commentsRoutes)
 app.use('/api/invitations', invitationsRoutes)
+app.use('/api/push', pushRoutes)
 
 // Manejo de errores
 app.use(errorHandler)
