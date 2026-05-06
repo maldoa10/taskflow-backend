@@ -3,7 +3,7 @@ import { Errors } from '../../shared/errors'
 import { Priority } from '@prisma/client'
 import type { SyncOperationInput } from './sync.validation'
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// Types
 
 interface SyncResult {
   entityId: string
@@ -12,7 +12,7 @@ interface SyncResult {
   message?: string
 }
 
-// ─── Authorization helper ─────────────────────────────────────────────────────
+// Authorization helper
 
 async function assertBoardMember(boardId: string, userId: string) {
   const member = await prisma.boardMember.findUnique({
@@ -22,7 +22,7 @@ async function assertBoardMember(boardId: string, userId: string) {
   return member
 }
 
-// ─── Operation handlers ───────────────────────────────────────────────────────
+// Operation handlers
 
 async function processTaskOp(op: SyncOperationInput, userId: string): Promise<SyncResult> {
   const { entityId, operation, payload, version } = op
@@ -190,7 +190,7 @@ async function processOperation(op: SyncOperationInput, userId: string): Promise
   }
 }
 
-// ─── Exports ──────────────────────────────────────────────────────────────────
+// Exports
 
 export async function processSyncBatch(
   operations: SyncOperationInput[],
