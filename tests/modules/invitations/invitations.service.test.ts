@@ -3,7 +3,6 @@ import * as invitationsService from '../../../src/modules/invitations/invitation
 
 const boardMember = prismaMock.boardMember as any
 const user = prismaMock.user as any
-const board = prismaMock.board as any
 
 // invitation no está en el mock base, lo extendemos
 const invitation = (prismaMock as any).invitation

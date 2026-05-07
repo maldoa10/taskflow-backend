@@ -1,4 +1,4 @@
-import { prismaMock, mockFn } from '../../__mocks__/prisma'
+import { prismaMock } from '../../__mocks__/prisma'
 
 jest.mock('web-push', () => ({
   setVapidDetails: jest.fn(),
