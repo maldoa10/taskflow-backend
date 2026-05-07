@@ -26,6 +26,9 @@ export const prismaMock = {
   boardMember: createModelMock(),
   column: createModelMock(),
   task: createModelMock(),
+  comment: createModelMock(),
+  invitation: createModelMock(),
+  pushSubscription: createModelMock(),
   $transaction: jest.fn(),
 } as unknown as PrismaClient & {
   user: ModelMock
@@ -33,6 +36,9 @@ export const prismaMock = {
   boardMember: ModelMock
   column: ModelMock
   task: ModelMock
+  comment: ModelMock
+  invitation: ModelMock
+  pushSubscription: ModelMock
   $transaction: jest.Mock
 }
 
@@ -41,7 +47,7 @@ jest.mock('../../src/database/DbClient', () => ({
 }))
 
 beforeEach(() => {
-  const modelsToReset = ['user', 'board', 'boardMember', 'column', 'task'] as const
+  const modelsToReset = ['user', 'board', 'boardMember', 'column', 'task', 'comment', 'invitation', 'pushSubscription'] as const
   modelsToReset.forEach((model) => {
     Object.values(
       prismaMock[model] as unknown as Record<string, jest.Mock>

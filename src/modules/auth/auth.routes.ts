@@ -1,7 +1,4 @@
 import { Router } from 'express'
-import rateLimit from 'express-rate-limit'
-import { Errors } from '../../shared/errors'
-import { logger } from '../../utils/logger'
 import { authenticate } from '../../middleware/authenticate'
 import { sensitiveRateLimiter, generalRateLimiter } from '../../middleware/rateLimiter'
 import { registerHandler, loginHandler, meHandler, refreshHandler } from './auth.controller'

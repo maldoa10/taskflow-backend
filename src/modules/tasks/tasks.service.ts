@@ -61,11 +61,12 @@ export async function updateTask(taskId: string, userId: string, input: UpdateTa
   })
 }
 
-export async function deleteTask(taskId: string, userId: string) {
+export async function deleteTask(taskId: string, userId: string): Promise<string> {
   const task = await prisma.task.findUnique({ where: { id: taskId } })
   if (!task) throw Errors.notFound('Tarea')
   await assertBoardMember(task.boardId, userId)
   await prisma.task.delete({ where: { id: taskId } })
+  return task.boardId
 }
 
 export async function moveTask(taskId: string, userId: string, input: MoveTaskInput) {
