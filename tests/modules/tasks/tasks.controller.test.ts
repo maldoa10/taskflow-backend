@@ -186,7 +186,7 @@ describe('updateTask controller', () => {
 
 describe('deleteTask controller', () => {
   it('responde 204 al eliminar la tarea', async () => {
-    mockTasksService.deleteTask.mockResolvedValue(undefined)
+    mockTasksService.deleteTask.mockResolvedValue('board-456')
     const req = makeReq({}, { id: 'task-789' })
     const res = makeRes()
 
