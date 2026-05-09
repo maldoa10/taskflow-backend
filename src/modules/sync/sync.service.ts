@@ -179,12 +179,52 @@ async function processBoardOp(op: SyncOperationInput, userId: string): Promise<S
   return { entityId, status: 'skipped' }
 }
 
+async function processCommentOp(op: SyncOperationInput, userId: string): Promise<SyncResult> {
+  const { entityId, operation, payload } = op
+
+  if (operation === 'CREATE') {
+    // Idempotent: if already exists, skip
+    const existing = await prisma.comment.findUnique({ where: { id: entityId } })
+    if (existing) return { entityId, status: 'skipped', serverData: existing }
+
+    const taskId = payload.taskId as string
+    const content = payload.content as string
+
+    if (!taskId || !content) {
+      return { entityId, status: 'error', message: 'taskId y content son requeridos' }
+    }
+
+    // Verify the task exists and user is a board member
+    const task = await prisma.task.findUnique({ where: { id: taskId } })
+    if (!task) return { entityId, status: 'error', message: 'Tarea no encontrada' }
+
+    await assertBoardMember(task.boardId, userId)
+
+    const comment = await prisma.comment.create({
+      data: {
+        id: entityId, // preserve client-generated UUID
+        taskId,
+        authorId: userId,
+        content,
+      },
+      include: {
+        author: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      },
+    })
+    return { entityId, status: 'applied', serverData: comment }
+  }
+
+  return { entityId, status: 'skipped' }
+}
+
 async function processOperation(op: SyncOperationInput, userId: string): Promise<SyncResult> {
   switch (op.entityType) {
     case 'task':
       return processTaskOp(op, userId)
     case 'board':
       return processBoardOp(op, userId)
+    case 'comment':
+      return processCommentOp(op, userId)
     default:
       return { entityId: op.entityId, status: 'skipped', message: 'Tipo no soportado aún' }
   }
