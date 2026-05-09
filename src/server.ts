@@ -13,6 +13,7 @@ import boardTasksRoutes from './modules/tasks/tasks.routes'
 import tasksRoutes from './modules/tasks/tasks.direct.routes'
 import syncRoutes from './modules/sync/sync.routes'
 import commentsRoutes from './modules/comments/comments.routes'
+import attachmentsRoutes from './modules/attachments/attachments.routes'
 import invitationsRoutes from './modules/invitations/invitations.routes'
 import pushRoutes from './modules/push/push.routes'
 import { initWebSocket } from './websocket/wsServer'
@@ -22,9 +23,15 @@ const PORT = env.PORT
 
 // Seguridad y utilidades
 app.use(helmet())
+
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim())
 app.use(
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
+      callback(new Error(`CORS: origin ${origin} not allowed`))
+    },
     credentials: true,
   })
 )
@@ -48,6 +55,7 @@ app.use('/api/boards/:boardId/tasks', boardTasksRoutes)
 app.use('/api/tasks', tasksRoutes)
 app.use('/api/sync', syncRoutes)
 app.use('/api/tasks/:taskId/comments', commentsRoutes)
+app.use('/api/tasks/:taskId/attachments', attachmentsRoutes)
 app.use('/api/invitations', invitationsRoutes)
 app.use('/api/push', pushRoutes)
 
