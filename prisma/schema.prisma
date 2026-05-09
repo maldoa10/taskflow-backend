@@ -113,11 +113,12 @@ model Task {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  column    Column    @relation(fields: [columnId], references: [id], onDelete: Cascade)
-  board     Board     @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  assignee  User?     @relation("assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  createdBy User      @relation("creator", fields: [createdById], references: [id])
-  comments  Comment[]
+  column      Column       @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  board       Board        @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  assignee    User?        @relation("assignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdBy   User         @relation("creator", fields: [createdById], references: [id])
+  comments    Comment[]
+  attachments Attachment[]
 
   @@map("tasks")
 }
@@ -133,6 +134,21 @@ model Comment {
   author User @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   @@map("comments")
+}
+
+model Attachment {
+  id           String   @id @default(uuid())
+  taskId       String
+  filename     String
+  originalName String
+  mimeType     String
+  size         Int
+  uploadedById String
+  createdAt    DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("attachments")
 }
 
 model Invitation {
