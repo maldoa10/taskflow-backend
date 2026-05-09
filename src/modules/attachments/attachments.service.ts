@@ -2,13 +2,46 @@ import { prisma } from '../../database/DbClient'
 import { Errors } from '../../shared/errors'
 import * as fs from 'fs'
 import * as path from 'path'
-import { v4 as uuid } from 'crypto'
+import { randomUUID } from 'crypto'
 
 const UPLOADS_DIR = path.join(process.cwd(), 'uploads')
 
 // Ensure uploads directory exists
 if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true })
+}
+
+// Allowed image MIME types — used as an allowlist to prevent path injection
+// via crafted mimeType or originalname values.
+const ALLOWED_MIME_TYPES: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/jpg': 'jpg',
+  'image/png': 'png',
+  'image/gif': 'gif',
+  'image/webp': 'webp',
+}
+
+/**
+ * Returns a safe extension for the given MIME type.
+ * Throws a validation error if the type is not in the allowlist.
+ */
+function safeExtFromMime(mimeType: string): string {
+  const ext = ALLOWED_MIME_TYPES[mimeType.toLowerCase()]
+  if (!ext) throw Errors.validationError({ mimeType: ['Tipo de imagen no permitido'] })
+  return ext
+}
+
+/**
+ * Builds and validates a final file path inside UPLOADS_DIR.
+ * Rejects anything that would escape the uploads directory.
+ */
+function safeUploadPath(filename: string): string {
+  // filename must be a UUID + dot + whitelisted extension — no slashes allowed
+  const resolved = path.resolve(UPLOADS_DIR, filename)
+  if (!resolved.startsWith(UPLOADS_DIR + path.sep) && resolved !== UPLOADS_DIR) {
+    throw Errors.badRequest('Nombre de archivo inválido')
+  }
+  return resolved
 }
 
 async function assertBoardMemberByTask(taskId: string, userId: string) {
@@ -32,10 +65,12 @@ export async function getAttachments(taskId: string, userId: string) {
 export async function createAttachment(taskId: string, userId: string, file: Express.Multer.File) {
   const task = await assertBoardMemberByTask(taskId, userId)
 
-  // Generate unique filename
-  const ext = path.extname(file.originalname)
-  const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext}`
-  const filepath = path.join(UPLOADS_DIR, filename)
+  // Validate MIME type against allowlist — never trust originalname extension
+  const ext = safeExtFromMime(file.mimetype)
+
+  // Filename is a UUID: no user input ever reaches the filesystem path
+  const filename = `${randomUUID()}.${ext}`
+  const filepath = safeUploadPath(filename)
 
   // Move file from temp to uploads
   fs.renameSync(file.path, filepath)
@@ -44,7 +79,7 @@ export async function createAttachment(taskId: string, userId: string, file: Exp
     data: {
       taskId,
       filename,
-      originalName: file.originalname,
+      originalName: file.originalname.slice(0, 255), // stored for display only
       mimeType: file.mimetype,
       size: file.size,
       uploadedById: userId,
@@ -63,13 +98,16 @@ export async function createAttachmentFromBase64(
 ) {
   const task = await assertBoardMemberByTask(taskId, userId)
 
+  // Validate MIME type against allowlist — never derive extension from user input
+  const ext = safeExtFromMime(mimeType)
+
   // Decode base64 and save file
   const base64Content = base64Data.replace(/^data:[^;]+;base64,/, '')
   const buffer = Buffer.from(base64Content, 'base64')
 
-  const ext = mimeType.split('/')[1] || 'jpg'
-  const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}.${ext}`
-  const filepath = path.join(UPLOADS_DIR, filename)
+  // Filename is a UUID: no user input ever reaches the filesystem path
+  const filename = `${randomUUID()}.${ext}`
+  const filepath = safeUploadPath(filename)
 
   fs.writeFileSync(filepath, buffer)
 
@@ -77,7 +115,7 @@ export async function createAttachmentFromBase64(
     data: {
       taskId,
       filename,
-      originalName: originalName || `image.${ext}`,
+      originalName: (originalName || `image.${ext}`).slice(0, 255), // stored for display only
       mimeType,
       size: buffer.length,
       uploadedById: userId,
@@ -101,8 +139,9 @@ export async function deleteAttachment(attachmentId: string, userId: string) {
   })
   if (!member) throw Errors.forbidden()
 
-  // Delete file from disk
-  const filepath = path.join(UPLOADS_DIR, attachment.filename)
+  // Delete file from disk — filename comes from DB (our own UUID), but we
+  // still validate the resolved path stays inside UPLOADS_DIR.
+  const filepath = safeUploadPath(attachment.filename)
   if (fs.existsSync(filepath)) {
     fs.unlinkSync(filepath)
   }
@@ -126,7 +165,8 @@ export async function getAttachmentFile(attachmentId: string, userId: string) {
   })
   if (!member) throw Errors.forbidden()
 
-  const filepath = path.join(UPLOADS_DIR, attachment.filename)
+  // Build and validate path — filename comes from DB but we still guard it
+  const filepath = safeUploadPath(attachment.filename)
   if (!fs.existsSync(filepath)) {
     throw Errors.notFound('Archivo')
   }
