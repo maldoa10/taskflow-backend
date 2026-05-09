@@ -72,8 +72,8 @@ export async function createAttachment(taskId: string, userId: string, file: Exp
   const filename = `${randomUUID()}.${ext}`
   const filepath = safeUploadPath(filename)
 
-  // Move file from temp to uploads
-  fs.renameSync(file.path, filepath)
+  // Write buffer directly — file.path never exists with memoryStorage
+  fs.writeFileSync(filepath, file.buffer)
 
   const attachment = await prisma.attachment.create({
     data: {

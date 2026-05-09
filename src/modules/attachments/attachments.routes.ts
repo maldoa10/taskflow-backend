@@ -1,7 +1,5 @@
 import { Router } from 'express'
 import multer from 'multer'
-import * as path from 'path'
-import * as fs from 'fs'
 import { authenticate } from '../../middleware/authenticate'
 import { generalRateLimiter } from '../../middleware/rateLimiter'
 import {
@@ -11,24 +9,10 @@ import {
   downloadAttachment,
 } from './attachments.controller'
 
-// Configure multer for file uploads
-const TEMP_DIR = path.join(process.cwd(), 'uploads', 'temp')
-if (!fs.existsSync(TEMP_DIR)) {
-  fs.mkdirSync(TEMP_DIR, { recursive: true })
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => {
-    cb(null, TEMP_DIR)
-  },
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.random().toString(36).substring(7)}`
-    cb(null, `${uniqueSuffix}${path.extname(file.originalname)}`)
-  },
-})
-
+// Configure multer to use memory storage — avoids writing unvalidated filenames to disk.
+// file.buffer is used in the service; file.path never exists.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max
   },
