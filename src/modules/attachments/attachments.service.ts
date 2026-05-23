@@ -94,7 +94,8 @@ export async function createAttachmentFromBase64(
   userId: string,
   base64Data: string,
   originalName: string,
-  mimeType: string
+  mimeType: string,
+  id?: string // optional: preserve client-generated UUID (used by sync to avoid duplicates)
 ) {
   const task = await assertBoardMemberByTask(taskId, userId)
 
@@ -106,13 +107,14 @@ export async function createAttachmentFromBase64(
   const buffer = Buffer.from(base64Content, 'base64')
 
   // Filename is a UUID: no user input ever reaches the filesystem path
-  const filename = `${randomUUID()}.${ext}`
+  const filename = `${id ?? randomUUID()}.${ext}`
   const filepath = safeUploadPath(filename)
 
   fs.writeFileSync(filepath, buffer)
 
   const attachment = await prisma.attachment.create({
     data: {
+      ...(id ? { id } : {}),
       taskId,
       filename,
       originalName: (originalName || `image.${ext}`).slice(0, 255), // stored for display only

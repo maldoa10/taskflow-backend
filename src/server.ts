@@ -22,7 +22,24 @@ const app = express()
 const PORT = env.PORT
 
 // Seguridad y utilidades
-app.use(helmet())
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow frontend to load attachments
+  })
+)
 
 const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim())
 app.use(
@@ -36,8 +53,8 @@ app.use(
   })
 )
 app.use(compression())
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '15mb' })) // base64 images add ~33% overhead over the 10MB file cap
+app.use(express.urlencoded({ extended: true, limit: '15mb' }))
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -67,9 +84,9 @@ const server = createServer(app)
 initWebSocket(server)
 
 server.listen(PORT, () => {
-  logger.info(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
-  logger.info(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
-  logger.info(`[TaskFlow API] WebSocket: ws://localhost:${PORT}/ws`)
+  logger.warn(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
+  logger.warn(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
+  logger.warn(`[TaskFlow API] WebSocket: ws://localhost:${PORT}/ws`)
 })
 
 export default app
