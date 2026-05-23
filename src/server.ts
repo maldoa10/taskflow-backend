@@ -22,7 +22,24 @@ const app = express()
 const PORT = env.PORT
 
 // Seguridad y utilidades
-app.use(helmet())
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow frontend to load attachments
+  })
+)
 
 const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim())
 app.use(
