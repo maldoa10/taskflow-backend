@@ -13,6 +13,7 @@ import boardTasksRoutes from './modules/tasks/tasks.routes'
 import tasksRoutes from './modules/tasks/tasks.direct.routes'
 import syncRoutes from './modules/sync/sync.routes'
 import commentsRoutes from './modules/comments/comments.routes'
+import attachmentsRoutes from './modules/attachments/attachments.routes'
 import invitationsRoutes from './modules/invitations/invitations.routes'
 import pushRoutes from './modules/push/push.routes'
 import { initWebSocket } from './websocket/wsServer'
@@ -21,16 +22,39 @@ const app = express()
 const PORT = env.PORT
 
 // Seguridad y utilidades
-app.use(helmet())
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+        imgSrc: ["'self'", 'data:', 'blob:'],
+        connectSrc: ["'self'"],
+        fontSrc: ["'self'"],
+        objectSrc: ["'none'"],
+        frameSrc: ["'none'"],
+        upgradeInsecureRequests: null,
+      },
+    },
+    crossOriginResourcePolicy: { policy: 'cross-origin' }, // allow frontend to load attachments
+  })
+)
+
+const allowedOrigins = env.CORS_ORIGIN.split(',').map((o) => o.trim())
 app.use(
   cors({
-    origin: env.CORS_ORIGIN,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman)
+      if (!origin || allowedOrigins.includes(origin)) return callback(null, true)
+      callback(new Error(`CORS: origin ${origin} not allowed`))
+    },
     credentials: true,
   })
 )
 app.use(compression())
-app.use(express.json())
-app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ limit: '15mb' })) // base64 images add ~33% overhead over the 10MB file cap
+app.use(express.urlencoded({ extended: true, limit: '15mb' }))
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -48,6 +72,7 @@ app.use('/api/boards/:boardId/tasks', boardTasksRoutes)
 app.use('/api/tasks', tasksRoutes)
 app.use('/api/sync', syncRoutes)
 app.use('/api/tasks/:taskId/comments', commentsRoutes)
+app.use('/api/tasks/:taskId/attachments', attachmentsRoutes)
 app.use('/api/invitations', invitationsRoutes)
 app.use('/api/push', pushRoutes)
 
@@ -59,9 +84,9 @@ const server = createServer(app)
 initWebSocket(server)
 
 server.listen(PORT, () => {
-  logger.info(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
-  logger.info(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
-  logger.info(`[TaskFlow API] WebSocket: ws://localhost:${PORT}/ws`)
+  logger.warn(`[TaskFlow API] Servidor corriendo en http://localhost:${PORT}`)
+  logger.warn(`[TaskFlow API] Health check: http://localhost:${PORT}/api/health`)
+  logger.warn(`[TaskFlow API] WebSocket: ws://localhost:${PORT}/ws`)
 })
 
 export default app

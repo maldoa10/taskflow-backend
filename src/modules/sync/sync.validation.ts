@@ -1,6 +1,6 @@
 import { z } from 'zod'
 
-const SyncEntityType = z.enum(['task', 'column', 'board', 'comment'])
+const SyncEntityType = z.enum(['task', 'column', 'board', 'comment', 'attachment'])
 const SyncOperationType = z.enum(['CREATE', 'UPDATE', 'DELETE', 'MOVE'])
 
 export const syncOperationSchema = z.object({

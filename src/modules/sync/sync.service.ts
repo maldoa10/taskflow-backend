@@ -2,6 +2,7 @@ import { prisma } from '../../database/DbClient'
 import { Errors } from '../../shared/errors'
 import { Priority } from '@prisma/client'
 import type { SyncOperationInput } from './sync.validation'
+import * as attachmentsService from '../attachments/attachments.service'
 
 // Types
 
@@ -179,12 +180,93 @@ async function processBoardOp(op: SyncOperationInput, userId: string): Promise<S
   return { entityId, status: 'skipped' }
 }
 
+async function processCommentOp(op: SyncOperationInput, userId: string): Promise<SyncResult> {
+  const { entityId, operation, payload } = op
+
+  if (operation === 'CREATE') {
+    // Idempotent: if already exists, skip
+    const existing = await prisma.comment.findUnique({ where: { id: entityId } })
+    if (existing) return { entityId, status: 'skipped', serverData: existing }
+
+    const taskId = payload.taskId as string
+    const content = payload.content as string
+
+    if (!taskId || !content) {
+      return { entityId, status: 'error', message: 'taskId y content son requeridos' }
+    }
+
+    // Verify the task exists and user is a board member
+    const task = await prisma.task.findUnique({ where: { id: taskId } })
+    if (!task) return { entityId, status: 'error', message: 'Tarea no encontrada' }
+
+    await assertBoardMember(task.boardId, userId)
+
+    const comment = await prisma.comment.create({
+      data: {
+        id: entityId, // preserve client-generated UUID
+        taskId,
+        authorId: userId,
+        content,
+      },
+      include: {
+        author: { select: { id: true, name: true, email: true, avatarUrl: true } },
+      },
+    })
+    return { entityId, status: 'applied', serverData: comment }
+  }
+
+  return { entityId, status: 'skipped' }
+}
+
+async function processAttachmentOp(op: SyncOperationInput, userId: string): Promise<SyncResult> {
+  const { entityId, operation, payload } = op
+
+  if (operation === 'CREATE') {
+    // Idempotent: if already exists, skip
+    const existing = await prisma.attachment.findUnique({ where: { id: entityId } })
+    if (existing) return { entityId, status: 'skipped', serverData: existing }
+
+    const taskId = payload.taskId as string
+    const data = payload.data as string
+    const mimeType = payload.mimeType as string
+    const originalName = (payload.originalName as string) || 'image.jpg'
+
+    if (!taskId || !data || !mimeType) {
+      return { entityId, status: 'error', message: 'taskId, data y mimeType son requeridos' }
+    }
+
+    const { attachment } = await attachmentsService.createAttachmentFromBase64(
+      taskId,
+      userId,
+      data,
+      originalName,
+      mimeType,
+      entityId // preserve client UUID so WS event carries same ID — prevents duplicate in UI
+    )
+    return { entityId, status: 'applied', serverData: attachment }
+  }
+
+  if (operation === 'DELETE') {
+    const attachment = await prisma.attachment.findUnique({ where: { id: entityId } })
+    if (!attachment) return { entityId, status: 'skipped', message: 'Archivo no encontrado' }
+
+    await attachmentsService.deleteAttachment(entityId, userId)
+    return { entityId, status: 'applied' }
+  }
+
+  return { entityId, status: 'skipped' }
+}
+
 async function processOperation(op: SyncOperationInput, userId: string): Promise<SyncResult> {
   switch (op.entityType) {
     case 'task':
       return processTaskOp(op, userId)
     case 'board':
       return processBoardOp(op, userId)
+    case 'comment':
+      return processCommentOp(op, userId)
+    case 'attachment':
+      return processAttachmentOp(op, userId)
     default:
       return { entityId: op.entityId, status: 'skipped', message: 'Tipo no soportado aún' }
   }
