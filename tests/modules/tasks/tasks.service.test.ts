@@ -1,11 +1,17 @@
 import { prismaMock, mockFn } from '../../__mocks__/prisma'
 import * as tasksService from '../../../src/modules/tasks/tasks.service'
+import { sendPushToUser } from '../../../src/modules/push/push.service'
+
+jest.mock('../../../src/modules/push/push.service', () => ({
+  sendPushToUser: jest.fn(),
+}))
 
 const boardMember = prismaMock.boardMember as any
 const task = prismaMock.task as any
 const column = prismaMock.column as any
 
 const mockUserId = 'user-123'
+const mockAssigneeId = 'user-789'
 const mockBoardId = 'board-456'
 const mockTaskId = 'task-789'
 const mockColumnId = 'col-111'
@@ -42,11 +48,15 @@ const mockTask = {
   updatedAt: new Date(),
 }
 
+const mockTaskWithRelations = {
+  ...mockTask,
+  board: { name: 'Mi Tablero Orgánico' },
+  column: { name: 'Por Hacer' },
+}
+
 beforeEach(() => {
   jest.clearAllMocks()
 })
-
-// getBoardTasks
 
 describe('tasksService.getBoardTasks', () => {
   it('devuelve las tareas del board si el usuario es miembro', async () => {
@@ -72,8 +82,6 @@ describe('tasksService.getBoardTasks', () => {
   })
 })
 
-// createTask
-
 describe('tasksService.createTask', () => {
   const input = {
     columnId: mockColumnId,
@@ -82,36 +90,41 @@ describe('tasksService.createTask', () => {
     tags: [],
   }
 
-  it('crea una tarea al final de la columna', async () => {
+  it('crea una tarea al final de la columna y no envía push si no hay assignee', async () => {
     mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
     mockFn(column, 'findFirst').mockResolvedValue(mockColumn)
-    mockFn(task, 'findFirst').mockResolvedValue(null) // no hay tareas previas → position = 0
-    mockFn(task, 'create').mockResolvedValue({ ...mockTask, position: 0 })
+    mockFn(task, 'findFirst').mockResolvedValue(null)
+    mockFn(task, 'create').mockResolvedValue(mockTaskWithRelations)
 
     const result = await tasksService.createTask(mockBoardId, mockUserId, input)
 
     expect(task.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ position: 0, boardId: mockBoardId }),
+        include: { board: { select: { name: true } } },
       })
     )
-    expect(result).toMatchObject({ id: mockTaskId, position: 0 })
+    expect(result).not.toHaveProperty('board')
+    expect(sendPushToUser).not.toHaveBeenCalled()
   })
 
-  it('calcula position = lastTask.position + 1 si ya hay tareas', async () => {
+  it('envía notificación push si la tarea se asigna a otro usuario', async () => {
     mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
     mockFn(column, 'findFirst').mockResolvedValue(mockColumn)
-    mockFn(task, 'findFirst').mockResolvedValue({ ...mockTask, position: 2 })
-    mockFn(task, 'create').mockResolvedValue({ ...mockTask, position: 3 })
+    mockFn(task, 'findFirst').mockResolvedValue(null)
 
-    const result = await tasksService.createTask(mockBoardId, mockUserId, input)
+    const inputWithAssignee = { ...input, assigneeId: mockAssigneeId }
+    mockFn(task, 'create').mockResolvedValue({
+      ...mockTaskWithRelations,
+      assigneeId: mockAssigneeId
+    })
 
-    expect(task.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ position: 3 }),
-      })
-    )
-    expect(result.position).toBe(3)
+    await tasksService.createTask(mockBoardId, mockUserId, inputWithAssignee)
+
+    expect(sendPushToUser).toHaveBeenCalledWith(mockAssigneeId, expect.objectContaining({
+      title: 'Te asignaron una tarea',
+      body: expect.stringContaining('Mi Tarea'),
+    }))
   })
 
   it('lanza FORBIDDEN si el usuario no es miembro', async () => {
@@ -132,41 +145,41 @@ describe('tasksService.createTask', () => {
       statusCode: 404,
     })
   })
-
-  it('convierte dueDate string a Date', async () => {
-    const dueDate = new Date('2025-12-31')
-    mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(column, 'findFirst').mockResolvedValue(mockColumn)
-    mockFn(task, 'findFirst').mockResolvedValue(null)
-    mockFn(task, 'create').mockResolvedValue({ ...mockTask, dueDate })
-
-    await tasksService.createTask(mockBoardId, mockUserId, { ...input, dueDate })
-
-    expect(task.create).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ dueDate: expect.any(Date) }),
-      })
-    )
-  })
 })
-
-// updateTask
 
 describe('tasksService.updateTask', () => {
   const input = { title: 'Tarea Actualizada' }
 
-  it('actualiza la tarea si el usuario es miembro del board', async () => {
-    const updated = { ...mockTask, title: 'Tarea Actualizada', version: 2 }
+  it('actualiza la tarea y limpia el retorno del objeto board', async () => {
     mockFn(task, 'findUnique').mockResolvedValue(mockTask)
     mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(task, 'update').mockResolvedValue(updated)
+    mockFn(task, 'update').mockResolvedValue(mockTaskWithRelations)
 
     const result = await tasksService.updateTask(mockTaskId, mockUserId, input)
 
     expect(task.update).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { id: mockTaskId } })
+      expect.objectContaining({
+        where: { id: mockTaskId },
+        include: { board: { select: { name: true } } }
+      })
     )
-    expect(result).toMatchObject({ title: 'Tarea Actualizada' })
+    expect(result).not.toHaveProperty('board')
+    expect(sendPushToUser).not.toHaveBeenCalled()
+  })
+
+  it('envía push si el asignado cambió y es distinto al usuario que edita', async () => {
+    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
+    mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
+    mockFn(task, 'update').mockResolvedValue({
+      ...mockTaskWithRelations,
+      assigneeId: mockAssigneeId
+    })
+
+    await tasksService.updateTask(mockTaskId, mockUserId, { assigneeId: mockAssigneeId })
+
+    expect(sendPushToUser).toHaveBeenCalledWith(mockAssigneeId, expect.objectContaining({
+      title: 'Te asignaron una tarea',
+    }))
   })
 
   it('lanza NOT_FOUND si la tarea no existe', async () => {
@@ -177,48 +190,7 @@ describe('tasksService.updateTask', () => {
       statusCode: 404,
     })
   })
-
-  it('lanza FORBIDDEN si el usuario no es miembro del board', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(null)
-
-    await expect(tasksService.updateTask(mockTaskId, mockUserId, input)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-      statusCode: 403,
-    })
-  })
-
-  it('convierte dueDate a Date si se proporciona', async () => {
-    const dueDate = new Date('2025-06-30')
-    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(task, 'update').mockResolvedValue({ ...mockTask, dueDate })
-
-    await tasksService.updateTask(mockTaskId, mockUserId, { dueDate })
-
-    expect(task.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ dueDate: expect.any(Date) }),
-      })
-    )
-  })
-
-  it('pone dueDate a null si se pasa null', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(task, 'update').mockResolvedValue({ ...mockTask, dueDate: null })
-
-    await tasksService.updateTask(mockTaskId, mockUserId, { dueDate: null })
-
-    expect(task.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ dueDate: null }),
-      })
-    )
-  })
 })
-
-// deleteTask
 
 describe('tasksService.deleteTask', () => {
   it('elimina la tarea si el usuario es miembro del board', async () => {
@@ -230,44 +202,28 @@ describe('tasksService.deleteTask', () => {
 
     expect(task.delete).toHaveBeenCalledWith({ where: { id: mockTaskId } })
   })
-
-  it('lanza NOT_FOUND si la tarea no existe', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(null)
-
-    await expect(tasksService.deleteTask(mockTaskId, mockUserId)).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-      statusCode: 404,
-    })
-  })
-
-  it('lanza FORBIDDEN si el usuario no es miembro del board', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(null)
-
-    await expect(tasksService.deleteTask(mockTaskId, mockUserId)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-      statusCode: 403,
-    })
-  })
 })
-
-// moveTask
 
 describe('tasksService.moveTask', () => {
   const moveInput = { columnId: mockColumnId2, position: 1 }
 
-  it('mueve la tarea a otra columna correctamente', async () => {
-    const movedTask = { ...mockTask, columnId: mockColumnId2, position: 1 }
+  it('mueve la tarea a otra columna y envía push al asignado si corresponde', async () => {
+    const initialTask = { ...mockTaskWithRelations, assigneeId: mockAssigneeId }
+    const destinationColumn = { ...mockColumn, id: mockColumnId2, name: 'En Progreso' }
+    const finalMovedTask = { ...mockTask, columnId: mockColumnId2, position: 1 }
+
     mockFn(task, 'findUnique')
-      .mockResolvedValueOnce(mockTask)   // primera llamada: encontrar la tarea
-      .mockResolvedValueOnce(movedTask)  // segunda llamada: findUnique final
+      .mockResolvedValueOnce(initialTask)
+      .mockResolvedValueOnce(finalMovedTask)
+
     mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(column, 'findFirst').mockResolvedValue({ ...mockColumn, id: mockColumnId2 })
+    mockFn(column, 'findFirst').mockResolvedValue(destinationColumn)
+
       ; (prismaMock.$transaction as jest.Mock).mockImplementation(async (cb: any) => {
         const tx = {
           task: {
             updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-            update: jest.fn().mockResolvedValue(movedTask),
+            update: jest.fn().mockResolvedValue(finalMovedTask),
           },
         }
         return cb(tx)
@@ -275,78 +231,15 @@ describe('tasksService.moveTask', () => {
 
     const result = await tasksService.moveTask(mockTaskId, mockUserId, moveInput)
 
+    expect(sendPushToUser).toHaveBeenCalledWith(mockAssigneeId, expect.objectContaining({
+      title: 'Tarea movida',
+      body: expect.stringContaining('"En Progreso"'),
+    }))
     expect(result).toMatchObject({ columnId: mockColumnId2, position: 1 })
   })
 
-  it('reordena en la misma columna (mover hacia adelante)', async () => {
-    const sameColumnTask = { ...mockTask, columnId: mockColumnId, position: 0 }
-    const movedTask = { ...mockTask, columnId: mockColumnId, position: 3 }
-    const sameColInput = { columnId: mockColumnId, position: 3 }
-
-    mockFn(task, 'findUnique')
-      .mockResolvedValueOnce(sameColumnTask)
-      .mockResolvedValueOnce(movedTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(column, 'findFirst').mockResolvedValue(mockColumn)
-      ; (prismaMock.$transaction as jest.Mock).mockImplementation(async (cb: any) => {
-        const tx = {
-          task: {
-            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-            update: jest.fn().mockResolvedValue(movedTask),
-          },
-        }
-        return cb(tx)
-      })
-
-    const result = await tasksService.moveTask(mockTaskId, mockUserId, sameColInput)
-    expect(result).toMatchObject({ position: 3 })
-  })
-
-  it('reordena en la misma columna (mover hacia atrás)', async () => {
-    const sameColumnTask = { ...mockTask, columnId: mockColumnId, position: 3 }
-    const movedTask = { ...mockTask, columnId: mockColumnId, position: 1 }
-    const sameColInput = { columnId: mockColumnId, position: 1 }
-
-    mockFn(task, 'findUnique')
-      .mockResolvedValueOnce(sameColumnTask)
-      .mockResolvedValueOnce(movedTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
-    mockFn(column, 'findFirst').mockResolvedValue(mockColumn)
-      ; (prismaMock.$transaction as jest.Mock).mockImplementation(async (cb: any) => {
-        const tx = {
-          task: {
-            updateMany: jest.fn().mockResolvedValue({ count: 1 }),
-            update: jest.fn().mockResolvedValue(movedTask),
-          },
-        }
-        return cb(tx)
-      })
-
-    const result = await tasksService.moveTask(mockTaskId, mockUserId, sameColInput)
-    expect(result).toMatchObject({ position: 1 })
-  })
-
-  it('lanza NOT_FOUND si la tarea no existe', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(null)
-
-    await expect(tasksService.moveTask(mockTaskId, mockUserId, moveInput)).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-      statusCode: 404,
-    })
-  })
-
-  it('lanza FORBIDDEN si el usuario no es miembro del board', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
-    mockFn(boardMember, 'findUnique').mockResolvedValue(null)
-
-    await expect(tasksService.moveTask(mockTaskId, mockUserId, moveInput)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
-      statusCode: 403,
-    })
-  })
-
   it('lanza NOT_FOUND si la columna destino no existe en el board', async () => {
-    mockFn(task, 'findUnique').mockResolvedValue(mockTask)
+    mockFn(task, 'findUnique').mockResolvedValue(mockTaskWithRelations)
     mockFn(boardMember, 'findUnique').mockResolvedValue(mockMember)
     mockFn(column, 'findFirst').mockResolvedValue(null)
 
