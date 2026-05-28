@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { prisma } from '../../database/DbClient'
 import { Errors } from '../../shared/errors'
+import { sendPushToUser } from '../push/push.service'
 
 async function assertOwner(boardId: string, userId: string) {
   const member = await prisma.boardMember.findUnique({
@@ -12,7 +13,6 @@ async function assertOwner(boardId: string, userId: string) {
 export async function inviteToBoard(boardId: string, inviterId: string, email: string) {
   await assertOwner(boardId, inviterId)
 
-  // If the invited user already has an account, check membership
   const existingUser = await prisma.user.findUnique({ where: { email } })
   if (existingUser) {
     const existingMember = await prisma.boardMember.findUnique({
@@ -21,16 +21,31 @@ export async function inviteToBoard(boardId: string, inviterId: string, email: s
     if (existingMember) throw Errors.conflict('El usuario ya es miembro del tablero')
   }
 
-  // Check for active pending invitation
   const existing = await prisma.invitation.findFirst({
     where: { boardId, email, status: 'PENDING' },
   })
   if (existing) throw Errors.conflict('Ya existe una invitación pendiente para ese email')
 
-  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 days
-  return prisma.invitation.create({
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
+  const invitation = await prisma.invitation.create({
     data: { boardId, email, inviterId, token: randomUUID(), expiresAt },
+    include: {
+      board: { select: { name: true } },
+      inviter: { select: { name: true } },
+    },
   })
+
+  if (existingUser) {
+    await sendPushToUser(existingUser.id, {
+      title: 'Nueva invitación',
+      body: `${invitation.inviter.name} te invitó al tablero "${invitation.board.name}"`,
+      url: '/invitations',
+    })
+  }
+
+  const { board: _board, inviter: _inviter, ...invitationWithoutIncludes } = invitation
+  return invitationWithoutIncludes
 }
 
 export async function listPendingInvitations(userId: string) {
