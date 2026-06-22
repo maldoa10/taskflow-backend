@@ -18,7 +18,7 @@ jobs:
       environment: ${{ steps.set-env.outputs.environment }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Determine environment
         id: set-env
@@ -59,7 +59,7 @@ jobs:
     environment: ${{ needs.build.outputs.environment }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -86,7 +86,7 @@ jobs:
     environment: ${{ needs.build.outputs.environment }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Download build artifact
         uses: actions/download-artifact@v4     # ← era v8, no existe
